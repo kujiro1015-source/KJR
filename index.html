@@ -1,1 +1,154 @@
-<h1>Hello World</h1>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3人グループチャット</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .chat-container { height: calc(100vh - 180px); }
+  </style>
+</head>
+<body class="bg-slate-100 font-sans h-screen flex flex-col justify-between max-w-md mx-auto shadow-lg">
+
+  <!-- ヘッダー (メンバー切替) -->
+  <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-10">
+    <div class="flex justify-between items-center mb-2">
+      <h1 class="text-lg font-bold"><i class="fa-solid fa-comments mr-2"></i>グループチャット</h1>
+      <span class="text-xs bg-emerald-700 px-2 py-1 rounded-full" id="online-count">3名オンライン</span>
+    </div>
+    
+    <!-- 操作中のメンバー切替 -->
+    <div class="flex items-center gap-2 bg-emerald-700/60 p-2 rounded-lg text-xs">
+      <span class="text-emerald-100">現在の操作者:</span>
+      <select id="user-selector" onchange="switchUser(this.value)" class="bg-white text-gray-800 font-bold px-2 py-1 rounded cursor-pointer outline-none flex-1">
+        <option value="A">メンバーA (自分)</option>
+        <option value="B">メンバーB</option>
+        <option value="C">メンバーC</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- メッセージ表示エリア -->
+  <main id="chat-box" class="chat-container overflow-y-auto p-4 space-y-4 flex-1">
+    <!-- メッセージがここに動的に追加されます -->
+  </main>
+
+  <!-- 入力エリア -->
+  <footer class="bg-white p-3 border-t sticky bottom-0">
+    <!-- クイックスタンプボタン -->
+    <div class="flex gap-2 mb-2 overflow-x-auto pb-1 text-lg">
+      <button onclick="sendStamp('👍')" class="hover:bg-gray-100 p-1 rounded">👍</button>
+      <button onclick="sendStamp('❤️')" class="hover:bg-gray-100 p-1 rounded">❤️</button>
+      <button onclick="sendStamp('😊')" class="hover:bg-gray-100 p-1 rounded">😊</button>
+      <button onclick="sendStamp('🎉')" class="hover:bg-gray-100 p-1 rounded">🎉</button>
+      <button onclick="sendStamp('🔥')" class="hover:bg-gray-100 p-1 rounded">🔥</button>
+    </div>
+
+    <!-- メッセージ入力フォーム -->
+    <form onsubmit="sendMessage(event)" class="flex gap-2">
+      <input type="text" id="message-input" placeholder="メッセージを入力..." required
+        class="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-emerald-500">
+      <button type="submit" 
+        class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-full text-sm transition">
+        送信
+      </button>
+    </form>
+  </footer>
+
+  <script>
+    // 3人のメンバー情報定義
+    const users = {
+      A: { name: 'メンバーA', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=A', bg: 'bg-emerald-500' },
+      B: { name: 'メンバーB', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=B', bg: 'bg-blue-500' },
+      C: { name: 'メンバーC', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=C', bg: 'bg-orange-500' }
+    };
+
+    let currentUserKey = 'A';
+    
+    // サンプルデータの初期化（ローカルストレージから読み込み）
+    let messages = JSON.parse(localStorage.getItem('chat_messages')) || [
+      { id: 1, sender: 'B', text: 'みんな、チャット準備できた？', time: '12:00' },
+      { id: 2, sender: 'C', text: 'はーい！準備OKです！', time: '12:01' }
+    ];
+
+    // 操作ユーザーの切り替え
+    function switchUser(key) {
+      currentUserKey = key;
+      renderMessages();
+    }
+
+    // メッセージの送信処理
+    function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      const newMessage = {
+        id: Date.now(),
+        sender: currentUserKey,
+        text: text,
+        time: timeStr
+      };
+
+      messages.push(newMessage);
+      saveAndRender();
+      input.value = '';
+    }
+
+    // スタンプ送信
+    function sendStamp(stamp) {
+      document.getElementById('message-input').value += stamp;
+    }
+
+    // データの保存と描画
+    function saveAndRender() {
+      localStorage.setItem('chat_messages', JSON.stringify(messages));
+      renderMessages();
+    }
+
+    // メッセージ画面の描画処理
+    function renderMessages() {
+      const chatBox = document.getElementById('chat-box');
+      chatBox.innerHTML = '';
+
+      messages.forEach(msg => {
+        const isMe = msg.sender === currentUserKey;
+        const senderInfo = users[msg.sender];
+
+        const msgHtml = `
+          <div class="flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}">
+            <!-- アイコン -->
+            <img src="${senderInfo.avatar}" alt="${senderInfo.name}" class="w-8 h-8 rounded-full bg-slate-200 border">
+            
+            <div class="max-w-[70%]">
+              <!-- 送信者名（相手の場合のみ表示） -->
+              ${!isMe ? `<div class="text-[10px] text-gray-500 mb-0.5 ml-1">${senderInfo.name}</div>` : ''}
+              
+              <!-- 吹き出し -->
+              <div class="p-3 rounded-2xl text-sm ${isMe ? 'bg-emerald-500 text-white rounded-br-none' : 'bg-white text-gray-800 shadow rounded-bl-none'}">
+                ${msg.text}
+              </div>
+            </div>
+
+            <!-- 送信時刻 -->
+            <span class="text-[10px] text-gray-400 mb-1">${msg.time}</span>
+          </div>
+        `;
+        chatBox.insertAdjacentHTML('beforeend', msgHtml);
+      });
+
+      // 最新のメッセージまで自動スクロール
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // 初回描画
+    renderMessages();
+  </script>
+</body>
+</html>
